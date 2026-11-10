@@ -32,12 +32,14 @@ export type ScheduleSeats = {
 
 export const GRADE_ORDER: SeatGrade[] = ["VIP", "S", "A", "B"];
 
-// 등급별 좌석 색 (선택 가능한 좌석에만 쓴다)
-export const GRADE_STYLE: Record<SeatGrade, string> = {
-  VIP: "bg-purple-500 hover:bg-purple-600",
-  S: "bg-blue-500 hover:bg-blue-600",
-  A: "bg-emerald-500 hover:bg-emerald-600",
-  B: "bg-amber-500 hover:bg-amber-600",
+// 등급별 좌석 색 (선택 가능한 좌석에만 쓴다).
+// Chakra의 colorPalette 이름이다. 컴포넌트에 colorPalette="purple"을 주면
+// "colorPalette.solid" 같은 토큰이 purple 계열로 바뀌고, 다크 모드 색도 알아서 맞춰진다
+export const GRADE_COLOR: Record<SeatGrade, string> = {
+  VIP: "purple",
+  S: "blue",
+  A: "green",
+  B: "orange",
 };
 
 // "2026-12-20T19:00:00" → "2026.12.20 19:00"

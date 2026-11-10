@@ -1,12 +1,13 @@
 "use client";
 
-import Link from "next/link";
+import { Alert, Box, Button, chakra, Flex, Grid, HStack, Link, Stack, Text } from "@chakra-ui/react";
+import NextLink from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import {
   formatDateTime,
   formatPrice,
+  GRADE_COLOR,
   GRADE_ORDER,
-  GRADE_STYLE,
   type ScheduleSeats,
   type Seat,
 } from "@/lib/schedule";
@@ -71,10 +72,18 @@ export function SeatMap({ scheduleId }: { scheduleId: string }) {
   };
 
   if (state.kind === "loading") {
-    return <p className="mt-6 text-zinc-500">좌석을 불러오는 중...</p>;
+    return (
+      <Text mt="6" color="fg.muted">
+        좌석을 불러오는 중...
+      </Text>
+    );
   }
   if (state.kind === "error") {
-    return <p className="mt-6 text-red-600">{state.message}</p>;
+    return (
+      <Text mt="6" color="fg.error">
+        {state.message}
+      </Text>
+    );
   }
 
   const { data } = state;
@@ -82,42 +91,43 @@ export function SeatMap({ scheduleId }: { scheduleId: string }) {
   const availableCount = data.seats.filter((s) => s.status === "AVAILABLE").length;
 
   return (
-    <div className="mt-6">
-      <div className="flex flex-wrap items-center justify-between gap-2 text-sm">
-        <div>
-          <p className="font-medium">{formatDateTime(data.startAt)} 공연</p>
-          <p className="text-zinc-500">
+    <Box mt="6">
+      <Flex wrap="wrap" align="center" justify="space-between" gap="2" textStyle="sm">
+        <Box>
+          <Text fontWeight="medium">{formatDateTime(data.startAt)} 공연</Text>
+          <Text color="fg.muted">
             잔여 {availableCount} / {data.seats.length}석
-          </p>
-        </div>
-        <button
-          type="button"
-          onClick={load}
-          className="rounded-md border border-zinc-300 px-3 py-1.5 hover:bg-zinc-50"
-        >
+          </Text>
+        </Box>
+        <Button variant="outline" size="sm" onClick={load}>
           새로고침
-        </button>
-      </div>
+        </Button>
+      </Flex>
 
       {!data.open && (
-        <p className="mt-4 rounded-md bg-zinc-100 px-4 py-3 text-sm">
-          아직 예매 오픈 전입니다. 오픈 시각: <b>{formatDateTime(data.ticketOpenAt)}</b>
-        </p>
+        <Alert.Root status="info" mt="4">
+          <Alert.Indicator />
+          <Alert.Title>
+            아직 예매 오픈 전입니다. 오픈 시각: <b>{formatDateTime(data.ticketOpenAt)}</b>
+          </Alert.Title>
+        </Alert.Root>
       )}
 
-      <div className="mt-6 rounded-lg border border-zinc-200 p-4">
-        <div className="mb-6 rounded bg-zinc-800 py-2 text-center text-xs tracking-widest text-white">
+      <Box mt="6" borderWidth="1px" rounded="lg" p="4">
+        <Box mb="6" rounded="sm" bg="gray.800" py="2" textAlign="center" textStyle="xs" letterSpacing="widest" color="white">
           STAGE
-        </div>
+        </Box>
         {/* 등급별로 한 줄씩 (1~10 VIP, 11~20 S, 21~30 A, 31~40 B) */}
-        <div className="space-y-3">
+        <Stack gap="3">
           {GRADE_ORDER.map((grade) => {
             const row = data.seats.filter((s) => s.grade === grade);
             if (row.length === 0) return null;
             return (
-              <div key={grade} className="flex items-center gap-3">
-                <span className="w-8 shrink-0 text-xs font-semibold text-zinc-500">{grade}</span>
-                <div className="grid flex-1 grid-cols-10 gap-1.5">
+              <Flex key={grade} align="center" gap="3">
+                <Text w="8" flexShrink="0" textStyle="xs" fontWeight="semibold" color="fg.muted">
+                  {grade}
+                </Text>
+                <Grid flex="1" templateColumns="repeat(10, 1fr)" gap="1.5">
                   {row.map((seat) => (
                     <SeatButton
                       key={seat.seatId}
@@ -129,40 +139,37 @@ export function SeatMap({ scheduleId }: { scheduleId: string }) {
                       }
                     />
                   ))}
-                </div>
-              </div>
+                </Grid>
+              </Flex>
             );
           })}
-        </div>
+        </Stack>
         <Legend />
-      </div>
+      </Box>
 
-      <div className="mt-6 flex items-center justify-between rounded-lg border border-zinc-200 px-4 py-3">
+      <Flex mt="6" align="center" justify="space-between" borderWidth="1px" rounded="lg" px="4" py="3">
         {selectedSeat ? (
-          <p className="text-sm">
+          <Text textStyle="sm">
             <b>
               {selectedSeat.grade}석 {selectedSeat.seatNumber}번
             </b>{" "}
             · {formatPrice(selectedSeat.price)}
-          </p>
+          </Text>
         ) : (
-          <p className="text-sm text-zinc-500">좌석을 선택하세요.</p>
+          <Text textStyle="sm" color="fg.muted">
+            좌석을 선택하세요.
+          </Text>
         )}
         {/* 예매 API는 2단계에서 만든다. 지금은 선택까지만 */}
-        <button
-          type="button"
-          disabled
-          title="2단계에서 예매 API를 연결합니다"
-          className="rounded-md bg-zinc-900 px-4 py-2 text-sm text-white disabled:cursor-not-allowed disabled:opacity-40"
-        >
+        <Button size="sm" disabled title="2단계에서 예매 API를 연결합니다">
           예매하기
-        </button>
-      </div>
+        </Button>
+      </Flex>
 
-      <Link href={`/concerts/${data.concertId}`} className="mt-4 inline-block text-sm text-zinc-500 hover:underline">
-        &larr; 공연 상세로
+      <Link asChild mt="4" textStyle="sm" color="fg.muted">
+        <NextLink href={`/concerts/${data.concertId}`}>&larr; 공연 상세로</NextLink>
       </Link>
-    </div>
+    </Box>
   );
 }
 
@@ -177,42 +184,54 @@ function SeatButton({
   selected: boolean;
   onSelect: () => void;
 }) {
-  const color =
-    seat.status === "SOLD"
-      ? "bg-zinc-300 text-zinc-500 line-through"
-      : disabled
-        ? "bg-zinc-200 text-zinc-400" // 오픈 전
-        : `${GRADE_STYLE[seat.grade]} text-white`;
+  const sold = seat.status === "SOLD";
 
+  // chakra.button: 스타일 prop을 받을 수 있는 <button>. (Box는 div라서 type, disabled 같은 button 속성 타입이 없다)
   return (
-    <button
+    <chakra.button
       type="button"
       disabled={disabled}
       onClick={onSelect}
       aria-pressed={selected}
-      aria-label={`${seat.grade}석 ${seat.seatNumber}번 ${seat.status === "SOLD" ? "판매 완료" : formatPrice(seat.price)}`}
-      className={`aspect-square rounded text-[10px] font-medium transition disabled:cursor-not-allowed ${color} ${
-        selected ? "ring-2 ring-zinc-900 ring-offset-2" : ""
-      }`}
+      aria-label={`${seat.grade}석 ${seat.seatNumber}번 ${sold ? "판매 완료" : formatPrice(seat.price)}`}
+      // colorPalette를 정하면 아래 "colorPalette.solid" 등이 등급 색으로 바뀐다
+      colorPalette={GRADE_COLOR[seat.grade]}
+      aspectRatio="square"
+      rounded="sm"
+      fontSize="10px"
+      fontWeight="medium"
+      transition="backgrounds"
+      bg="colorPalette.solid"
+      color="colorPalette.contrast"
+      _hover={{ bg: "colorPalette.emphasized" }}
+      // 판매 완료·오픈 전 좌석은 회색으로 덮는다 (disabled 상태일 때만 적용)
+      _disabled={{
+        cursor: "not-allowed",
+        bg: sold ? "gray.subtle" : "bg.muted",
+        color: "fg.subtle",
+        textDecoration: sold ? "line-through" : undefined,
+      }}
+      // aria-pressed="true"일 때 바깥쪽 테두리로 선택 표시 (Tailwind의 ring + ring-offset)
+      _pressed={{ outline: "2px solid", outlineColor: "fg", outlineOffset: "2px" }}
     >
       {seat.seatNumber}
-    </button>
+    </chakra.button>
   );
 }
 
 function Legend() {
   return (
-    <ul className="mt-6 flex flex-wrap gap-4 text-xs text-zinc-600">
+    <HStack as="ul" mt="6" wrap="wrap" gap="4" textStyle="xs" color="fg.muted">
       {GRADE_ORDER.map((grade) => (
-        <li key={grade} className="flex items-center gap-1.5">
-          <span className={`h-3 w-3 rounded-sm ${GRADE_STYLE[grade]}`} />
+        <HStack as="li" key={grade} gap="1.5">
+          <Box w="3" h="3" rounded="xs" colorPalette={GRADE_COLOR[grade]} bg="colorPalette.solid" />
           {grade}
-        </li>
+        </HStack>
       ))}
-      <li className="flex items-center gap-1.5">
-        <span className="h-3 w-3 rounded-sm bg-zinc-300" />
+      <HStack as="li" gap="1.5">
+        <Box w="3" h="3" rounded="xs" bg="gray.subtle" />
         판매 완료
-      </li>
-    </ul>
+      </HStack>
+    </HStack>
   );
 }

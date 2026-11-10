@@ -13,13 +13,9 @@ const nextConfig: NextConfig = {
   },
   cacheComponents: true,
   partialPrefetching: true,
-  turbopack: {
-    rules: {
-      "*.css": {
-        loaders: ["@tailwindcss/turbopack"],
-        as: "*.css",
-      },
-    },
+  experimental: {
+    // Chakra는 컴포넌트가 아주 많은 패키지라, 실제로 import한 것만 번들에 넣도록 한다
+    optimizePackageImports: ["@chakra-ui/react"],
   },
 };
 

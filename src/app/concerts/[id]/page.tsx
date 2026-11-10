@@ -1,7 +1,20 @@
+import {
+  Badge,
+  Box,
+  Container,
+  DataList,
+  Flex,
+  Heading,
+  LinkBox,
+  LinkOverlay,
+  Stack,
+  Text,
+} from "@chakra-ui/react";
 import type { Metadata } from "next";
-import Link from "next/link";
+import NextLink from "next/link";
 import { notFound } from "next/navigation";
 import { Suspense } from "react";
+import { BackLink } from "@/components/back-link";
 import { getConcert, getSchedules } from "@/lib/api";
 import { GENRE_LABEL } from "@/lib/concert";
 import { formatDateTime } from "@/lib/schedule";
@@ -26,16 +39,14 @@ export async function generateMetadata({ params }: PageProps<"/concerts/[id]">):
 // cacheComponents 환경에서는 params가 요청 시점 데이터라 Suspense 안에서 꺼내야 한다
 export default function ConcertDetailPage({ params }: PageProps<"/concerts/[id]">) {
   return (
-    <main className="mx-auto w-full max-w-3xl px-4 py-12">
-      <Link href="/concerts" className="text-sm text-zinc-500 hover:underline">
-        &larr; 공연 목록
-      </Link>
-      <Suspense fallback={<p className="mt-6 text-zinc-500">불러오는 중...</p>}>
+    <Container as="main" maxW="3xl" py="12">
+      <BackLink href="/concerts">공연 목록</BackLink>
+      <Suspense fallback={<Text mt="6" color="fg.muted">불러오는 중...</Text>}>
         {params.then(({ id }) => (
           <ConcertDetail id={id} />
         ))}
       </Suspense>
-    </main>
+    </Container>
   );
 }
 
@@ -46,20 +57,31 @@ async function ConcertDetail({ id }: { id: string }) {
   }
 
   return (
-    <article className="mt-6">
-      <span className="text-sm text-zinc-500">{GENRE_LABEL[concert.genre]}</span>
-      <h1 className="mt-1 text-3xl font-bold">{concert.title}</h1>
-      <dl className="mt-6 grid grid-cols-[80px_1fr] gap-y-2 text-sm">
-        <dt className="text-zinc-500">장소</dt>
-        <dd>{concert.venue}</dd>
-        <dt className="text-zinc-500">기간</dt>
-        <dd>
-          {concert.startDate} ~ {concert.endDate}
-        </dd>
-      </dl>
-      {concert.description && <p className="mt-6 leading-7">{concert.description}</p>}
+    <Box as="article" mt="6">
+      <Badge variant="subtle">{GENRE_LABEL[concert.genre]}</Badge>
+      <Heading as="h1" size="3xl" mt="1">
+        {concert.title}
+      </Heading>
+      {/* DataList: <dl><dt><dd> 구조를 그려 주는 컴포넌트 */}
+      <DataList.Root orientation="horizontal" mt="6" size="sm">
+        <DataList.Item>
+          <DataList.ItemLabel minW="20">장소</DataList.ItemLabel>
+          <DataList.ItemValue>{concert.venue}</DataList.ItemValue>
+        </DataList.Item>
+        <DataList.Item>
+          <DataList.ItemLabel minW="20">기간</DataList.ItemLabel>
+          <DataList.ItemValue>
+            {concert.startDate} ~ {concert.endDate}
+          </DataList.ItemValue>
+        </DataList.Item>
+      </DataList.Root>
+      {concert.description && (
+        <Text mt="6" lineHeight="tall">
+          {concert.description}
+        </Text>
+      )}
       <ScheduleList concertId={id} />
-    </article>
+    </Box>
   );
 }
 
@@ -70,27 +92,31 @@ async function ScheduleList({ concertId }: { concertId: string }) {
   const schedules = await getSchedules(concertId);
 
   return (
-    <section className="mt-10">
-      <h2 className="text-lg font-semibold">회차</h2>
+    <Box as="section" mt="10">
+      <Heading as="h2" size="lg">
+        회차
+      </Heading>
       {schedules.length === 0 ? (
-        <p className="mt-3 text-sm text-zinc-500">등록된 회차가 없습니다.</p>
+        <Text mt="3" textStyle="sm" color="fg.muted">
+          등록된 회차가 없습니다.
+        </Text>
       ) : (
-        <ul className="mt-3 divide-y divide-zinc-200 rounded-lg border border-zinc-200">
+        // separator: 항목 사이에 구분선을 넣는다 (Tailwind의 divide-y)
+        <Stack as="ul" mt="3" gap="0" borderWidth="1px" rounded="lg" separator={<Box borderTopWidth="1px" />}>
           {schedules.map((schedule) => (
-            <li key={schedule.id}>
-              <Link
-                href={`/schedules/${schedule.id}`}
-                className="flex items-center justify-between px-4 py-3 hover:bg-zinc-50"
-              >
-                <span className="font-medium">{formatDateTime(schedule.startAt)}</span>
-                <span className="text-sm text-zinc-500">
+            <LinkBox as="li" key={schedule.id} px="4" py="3" _hover={{ bg: "bg.muted" }}>
+              <Flex align="center" justify="space-between">
+                <LinkOverlay asChild fontWeight="medium">
+                  <NextLink href={`/schedules/${schedule.id}`}>{formatDateTime(schedule.startAt)}</NextLink>
+                </LinkOverlay>
+                <Text textStyle="sm" color="fg.muted">
                   예매 오픈 {formatDateTime(schedule.ticketOpenAt)} &rarr;
-                </span>
-              </Link>
-            </li>
+                </Text>
+              </Flex>
+            </LinkBox>
           ))}
-        </ul>
+        </Stack>
       )}
-    </section>
+    </Box>
   );
 }

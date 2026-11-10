@@ -1,5 +1,6 @@
+import { Badge, Container, Heading, LinkBox, LinkOverlay, Stack, Text } from "@chakra-ui/react";
 import type { Metadata } from "next";
-import Link from "next/link";
+import NextLink from "next/link";
 import { getConcerts } from "@/lib/api";
 import { GENRE_LABEL } from "@/lib/concert";
 
@@ -12,29 +13,40 @@ export default async function ConcertsPage() {
   const concerts = await getConcerts();
 
   return (
-    <main className="mx-auto w-full max-w-3xl px-4 py-12">
-      <h1 className="mb-8 text-2xl font-bold">공연 목록</h1>
+    <Container as="main" maxW="3xl" py="12">
+      <Heading as="h1" size="2xl" mb="8">
+        공연 목록
+      </Heading>
 
       {concerts.length === 0 ? (
-        <p className="text-zinc-500">등록된 공연이 없습니다.</p>
+        <Text color="fg.muted">등록된 공연이 없습니다.</Text>
       ) : (
-        <ul className="flex flex-col gap-3">
+        <Stack as="ul" gap="3">
           {concerts.map((concert) => (
-            <li key={concert.id}>
-              <Link
-                href={`/concerts/${concert.id}`}
-                className="block rounded-lg border border-zinc-200 p-4 transition-colors hover:bg-zinc-50 dark:border-zinc-800 dark:hover:bg-zinc-900"
-              >
-                <span className="text-xs text-zinc-500">{GENRE_LABEL[concert.genre]}</span>
-                <h2 className="text-lg font-semibold">{concert.title}</h2>
-                <p className="text-sm text-zinc-600 dark:text-zinc-400">
-                  {concert.venue} · {concert.startDate} ~ {concert.endDate}
-                </p>
-              </Link>
-            </li>
+            // LinkBox + LinkOverlay: 카드 전체를 클릭 가능하게 하면서 <a>는 제목 하나만 둔다
+            <LinkBox
+              as="li"
+              key={concert.id}
+              borderWidth="1px"
+              rounded="lg"
+              p="4"
+              transition="background"
+              _hover={{ bg: "bg.muted" }}
+            >
+              <Badge variant="subtle">{GENRE_LABEL[concert.genre]}</Badge>
+              <Heading as="h2" size="md" mt="1">
+                {/* asChild: Chakra 스타일은 유지하고 실제 태그는 Next.js Link(클라이언트 라우팅)로 그린다 */}
+                <LinkOverlay asChild>
+                  <NextLink href={`/concerts/${concert.id}`}>{concert.title}</NextLink>
+                </LinkOverlay>
+              </Heading>
+              <Text textStyle="sm" color="fg.muted">
+                {concert.venue} · {concert.startDate} ~ {concert.endDate}
+              </Text>
+            </LinkBox>
           ))}
-        </ul>
+        </Stack>
       )}
-    </main>
+    </Container>
   );
 }
