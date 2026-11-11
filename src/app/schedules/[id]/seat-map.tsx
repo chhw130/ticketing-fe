@@ -1,93 +1,40 @@
 "use client";
 
 import { Alert, Box, Button, chakra, Flex, Grid, HStack, Link, Stack, Text } from "@chakra-ui/react";
+import { useQuery } from "@tanstack/react-query";
 import NextLink from "next/link";
-import { useCallback, useEffect, useState } from "react";
-import {
-  formatDateTime,
-  formatPrice,
-  GRADE_COLOR,
-  GRADE_ORDER,
-  type ScheduleSeats,
-  type Seat,
-} from "@/lib/schedule";
-
-type ApiResult<T> = { message: string; data: T };
-type ErrorResponse = { code: string; message: string };
-
-type LoadState =
-  | { kind: "loading" }
-  | { kind: "error"; message: string }
-  | { kind: "loaded"; data: ScheduleSeats };
+import { useState } from "react";
+import { seatsQuery } from "@/lib/queries";
+import { formatDateTime, formatPrice, GRADE_COLOR, GRADE_ORDER, type Seat } from "@/lib/schedule";
 
 // 좌석 배치도. 브라우저에서 직접 API를 부른다 (CSR).
-// /api/** 는 next.config의 rewrites가 Spring으로 넘겨줘서 CORS 설정 없이 호출된다
+// 예전에는 useState + useEffect로 로딩/에러/응답 상태와 늦게 온 응답 무시를 직접 관리했는데,
+// TanStack Query의 useQuery가 그걸 전부 대신한다 (isPending, error, isFetching, 요청 취소, 재시도)
 export function SeatMap({ scheduleId }: { scheduleId: string }) {
-  const [state, setState] = useState<LoadState>({ kind: "loading" });
+  const { data, error, isPending, isFetching, refetch } = useQuery(seatsQuery(scheduleId));
   const [selectedSeatId, setSelectedSeatId] = useState<number | null>(null);
 
-  // 응답을 받아서 다음 상태를 "돌려주기만" 한다 (setState는 부르는 쪽에서)
-  const fetchSeats = useCallback(async (): Promise<LoadState> => {
-    try {
-      // cache: "no-store" → 좌석 상태는 항상 최신 값을 받아야 한다
-      const res = await fetch(`/api/schedules/${scheduleId}/seats`, { cache: "no-store" });
-      if (!res.ok) {
-        // 백엔드 공통 에러 응답 { code, message }
-        const error: ErrorResponse = await res.json();
-        return { kind: "error", message: error.message };
-      }
-      const body: ApiResult<ScheduleSeats> = await res.json();
-      return { kind: "loaded", data: body.data };
-    } catch {
-      return { kind: "error", message: "서버에 연결할 수 없습니다." };
-    }
-  }, [scheduleId]);
-
-  const apply = useCallback((next: LoadState) => {
-    setState(next);
-    if (next.kind === "loaded") {
-      // 새로 불러왔는데 고른 좌석이 그사이 팔렸으면 선택을 푼다
-      setSelectedSeatId((prev) =>
-        next.data.seats.some((s) => s.seatId === prev && s.status === "AVAILABLE") ? prev : null,
-      );
-    }
-  }, []);
-
-  // 처음 화면에 나타날 때 한 번 불러온다. 첫 상태가 이미 loading이라 effect 안에서 setState를 바로 부르지 않는다
-  // ignore: 응답이 오기 전에 화면을 떠나면(또는 scheduleId가 바뀌면) 늦게 온 응답을 버린다
-  useEffect(() => {
-    let ignore = false;
-    fetchSeats().then((next) => {
-      if (!ignore) apply(next);
-    });
-    return () => {
-      ignore = true;
-    };
-  }, [fetchSeats, apply]);
-
-  // 새로고침 버튼: 이벤트 핸들러라 바로 loading으로 바꿔도 된다
-  const load = async () => {
-    setState({ kind: "loading" });
-    apply(await fetchSeats());
-  };
-
-  if (state.kind === "loading") {
+  // isPending: 아직 한 번도 데이터를 못 받은 상태 (새로고침 중에는 false라 기존 배치도가 그대로 보인다)
+  if (isPending) {
     return (
       <Text mt="6" color="fg.muted">
         좌석을 불러오는 중...
       </Text>
     );
   }
-  if (state.kind === "error") {
+  if (error) {
+    // http.ts의 응답 인터셉터가 모든 에러를 ApiError로 바꿔 두어서 message를 바로 보여 줄 수 있다
     return (
       <Text mt="6" color="fg.error">
-        {state.message}
+        {error.message}
       </Text>
     );
   }
 
-  const { data } = state;
-  const selectedSeat = data.seats.find((s) => s.seatId === selectedSeatId) ?? null;
+  // 고른 좌석이 새로고침 사이에 팔렸으면 선택이 없는 것으로 본다.
+  // (예전엔 응답마다 선택 상태를 고쳐 썼지만, 매 렌더마다 계산하면 상태를 맞출 필요가 없다)
+  const selectedSeat =
+    data.seats.find((s) => s.seatId === selectedSeatId && s.status === "AVAILABLE") ?? null;
   const availableCount = data.seats.filter((s) => s.status === "AVAILABLE").length;
 
   return (
@@ -99,7 +46,7 @@ export function SeatMap({ scheduleId }: { scheduleId: string }) {
             잔여 {availableCount} / {data.seats.length}석
           </Text>
         </Box>
-        <Button variant="outline" size="sm" onClick={load}>
+        <Button variant="outline" size="sm" onClick={() => refetch()} loading={isFetching}>
           새로고침
         </Button>
       </Flex>
@@ -133,7 +80,7 @@ export function SeatMap({ scheduleId }: { scheduleId: string }) {
                       key={seat.seatId}
                       seat={seat}
                       disabled={!data.open || seat.status === "SOLD"}
-                      selected={seat.seatId === selectedSeatId}
+                      selected={seat.seatId === selectedSeat?.seatId}
                       onSelect={() =>
                         setSelectedSeatId((prev) => (prev === seat.seatId ? null : seat.seatId))
                       }
